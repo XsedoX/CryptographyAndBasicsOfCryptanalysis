@@ -82,11 +82,13 @@ def hamming_distance(function1, function2):
     return distance
 
 
-def calculate_function_linearity(sbox_function, linear_functions_dict: dict, amount_of_arguments):
+def calculate_function_linearity(sbox_function, linear_functions_dict_row_notation: dict, amount_of_arguments):
     min_distance = None
-    for key in linear_functions_dict:
-        distance = hamming_distance(extract_function_from_row_notation(linear_functions_dict, key, amount_of_arguments)
-                                    , sbox_function)
+    columns = len(linear_functions_dict_row_notation[0])
+    for column in range(columns):
+        distance = hamming_distance(
+            extract_function_from_row_notation(linear_functions_dict_row_notation, column, amount_of_arguments),
+            sbox_function)
         if min_distance is None:
             min_distance = distance
         else:
@@ -99,7 +101,7 @@ def calculate_function_SAC(sbox_function, amount_of_arguments):
     amount_of_sbox_function_values = len(sbox_function)
     SAC_values = []
     for changed_bit in range(amount_of_arguments):
-        alpha = changed_bit*2
+        alpha = changed_bit * 2
         if alpha == 0:
             alpha = 1
         SAC_value_for_changed_bit = 0
