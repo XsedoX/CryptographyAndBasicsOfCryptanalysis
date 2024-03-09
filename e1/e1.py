@@ -1,7 +1,8 @@
 import itertools
+import random
 
 
-def file_reader(path):
+def read_sbox(path):
     f = open(path, mode='rb')
     s_box = f.read()
     f.close()
@@ -29,10 +30,10 @@ def extract_functions_from_sbox(sbox, amount_of_arguments):
         result.append([])
 
     skip = False
-    for byte in sbox:
+    for number in sbox:
         if not skip:
             for nthBit in range(amount_of_arguments):
-                result[nthBit].append(get_nth_bit(byte, nthBit))
+                result[nthBit].append(get_nth_bit(number, nthBit))
         skip = not skip
 
     return result
@@ -114,19 +115,16 @@ def calculate_function_SAC(sbox_function, amount_of_arguments):
     return average(SAC_values)
 
 
-def calculate_all_functions_SAC(amount_of_arguments):
-    sbox = file_reader("sbox.SBX")
+def calculate_all_functions_SAC(sbox, amount_of_arguments):
     sbox_functions = extract_functions_from_sbox(sbox, amount_of_arguments)
     all_functions_SAC = []
     for sbox_function in sbox_functions:
         all_functions_SAC.append(calculate_function_SAC(sbox_function, amount_of_arguments))
 
-    print("SAC:", all_functions_SAC)
-    print("SAC average:", average(all_functions_SAC))
+    return all_functions_SAC
 
 
-def calculate_all_functions_linearity(amount_of_arguments):
-    sbox = file_reader("sbox.SBX")
+def calculate_all_functions_linearity(sbox, amount_of_arguments):
     sbox_functions = extract_functions_from_sbox(sbox, amount_of_arguments)
     linear_functions = linear_functions_generator(amount_of_arguments)
     all_functions_linearity = []
@@ -134,9 +132,93 @@ def calculate_all_functions_linearity(amount_of_arguments):
         function_linearity = calculate_function_linearity(sbox_function, linear_functions, amount_of_arguments)
         all_functions_linearity.append(function_linearity)
 
+    return all_functions_linearity
+
+
+def extract_values_from_sbox(sbox, amount_of_arguments):
+    result = []
+    skip = False
+    for byte in sbox:
+        if not skip:
+            result.append(byte)
+        skip = not skip
+
+    return result
+
+
+def calculate_cycles(checked_inputs, values_from_sbox, input_value):
+    if len(checked_inputs) == 256:
+        return True
+    value_from_sbox = values_from_sbox[input_value]
+    if value_from_sbox in checked_inputs:
+        return False
+    checked_inputs.add(value_from_sbox)
+    return calculate_cycles(checked_inputs, values_from_sbox, value_from_sbox)
+
+
+def calculate_xor(num1, num2, amount_of_arguments):
+    result = 0
+    for i in range(amount_of_arguments):
+        xored_bit = get_nth_bit(num1, i) ^ get_nth_bit(num2, i)
+        result += xored_bit * (2**i)
+
+    return result
+
+
+def calculate_xor_profile(amount_of_arguments, values_from_sbox):
+    possible_outputs = [[0 for i in range(2**amount_of_arguments)] for j in range(2**amount_of_arguments)]
+    possible_values = [i for i in range(2**amount_of_arguments)]
+    combinations = list(itertools.combinations(possible_values, 2))
+    for combination in combinations:
+        x1 = combination[0]
+        x2 = combination[1]
+        y1 = values_from_sbox[x1]
+        y2 = values_from_sbox[x2]
+        sum_x1_x2 = calculate_xor(x1, x2, amount_of_arguments)
+        sum_y1_y2 = calculate_xor(y1, y2, amount_of_arguments)
+        possible_outputs[sum_x1_x2][sum_y1_y2] += 2
+
+    return max(map(max, possible_outputs))
+
+
+def check_balanced(functions_from_sbox, amount_of_arguments):
+    for function in functions_from_sbox:
+        if sum(function) != 2**(amount_of_arguments-1):
+            return False
+    return True
+
+
+def generate_sbox(amount_of_arguments):
+    random_nums = []
+    result = []
+    while len(random_nums) != 2**amount_of_arguments:
+        random_number = random.randint(0, (2**amount_of_arguments)-1)
+        if random_number not in random_nums:
+            random_nums.append(random_number)
+
+    for num in random_nums:
+        result.append(num)
+        result.append(0)
+
+    return result
+
+
+def check_sbox(sbox, amount_of_arguments):
+    functions_from_sbox = extract_functions_from_sbox(sbox, amount_of_arguments)
+    values_from_sbox = extract_values_from_sbox(sbox, amount_of_arguments)
+    all_functions_linearity = calculate_all_functions_linearity(sbox, amount_of_arguments)
+    all_functions_SAC = calculate_all_functions_SAC(sbox, amount_of_arguments)
+    print("Balanced?: ", check_balanced(functions_from_sbox, amount_of_arguments))
     print("Linearity:", all_functions_linearity)
-    print("Linearity average:", average(all_functions_linearity))
+    print("SAC:", all_functions_SAC)
+    print("SAC average:", average(all_functions_SAC))
+    print("Cycles:", not calculate_cycles(set(), values_from_sbox, 0))
+    print("XOR profile: ", calculate_xor_profile(amount_of_arguments, values_from_sbox))
 
-
-calculate_all_functions_linearity(8)
-calculate_all_functions_SAC(8)
+print("--------------------------------------------------------")
+print("Given sbox:")
+check_sbox(read_sbox("sbox.SBX"), 8)
+print("--------------------------------------------------------")
+print("Random sbox:")
+check_sbox(generate_sbox(8), 8)
+print("--------------------------------------------------------")
