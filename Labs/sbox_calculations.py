@@ -1,5 +1,7 @@
 import itertools
 import random
+from sympy.logic.boolalg import ANFform
+from sympy import symbols
 
 
 def read_sbox(path):
@@ -135,7 +137,7 @@ def calculate_all_functions_linearity(sbox, amount_of_arguments):
     return all_functions_linearity
 
 
-def extract_values_from_sbox(sbox, amount_of_arguments):
+def extract_values_from_sbox(sbox):
     result = []
     skip = False
     for byte in sbox:
@@ -161,7 +163,7 @@ def calculate_xor(num1, num2, amount_of_arguments):
     for i in range(amount_of_arguments):
         xored_bit = get_nth_bit(num1, i) ^ get_nth_bit(num2, i)
         result += xored_bit * (2**i)
-
+    
     return result
 
 
@@ -171,13 +173,13 @@ def calculate_xor_profile(amount_of_arguments, values_from_sbox):
     combinations = list(itertools.combinations(possible_values, 2))
     for combination in combinations:
         x1 = combination[0]
-        x2 = combination[1]
+        x2 = combination[1] 
         y1 = values_from_sbox[x1]
         y2 = values_from_sbox[x2]
         sum_x1_x2 = calculate_xor(x1, x2, amount_of_arguments)
         sum_y1_y2 = calculate_xor(y1, y2, amount_of_arguments)
         possible_outputs[sum_x1_x2][sum_y1_y2] += 2
-
+    
     return max(map(max, possible_outputs))
 
 
@@ -199,13 +201,13 @@ def generate_sbox(amount_of_arguments):
     for num in random_nums:
         result.append(num)
         result.append(0)
-
+    
     return result
-
+    
 
 def check_sbox(sbox, amount_of_arguments):
     functions_from_sbox = extract_functions_from_sbox(sbox, amount_of_arguments)
-    values_from_sbox = extract_values_from_sbox(sbox, amount_of_arguments)
+    values_from_sbox = extract_values_from_sbox(sbox)
     all_functions_linearity = calculate_all_functions_linearity(sbox, amount_of_arguments)
     all_functions_SAC = calculate_all_functions_SAC(sbox, amount_of_arguments)
     print("Balanced?: ", check_balanced(functions_from_sbox, amount_of_arguments))
@@ -214,6 +216,22 @@ def check_sbox(sbox, amount_of_arguments):
     print("SAC average:", average(all_functions_SAC))
     print("Cycles:", not calculate_cycles(set(), values_from_sbox, 0))
     print("XOR profile: ", calculate_xor_profile(amount_of_arguments, values_from_sbox))
+    for index, anf_function in enumerate(calculate_rank(functions_from_sbox)):
+        print("ANF form of function", index, "is:", anf_function)
+    
+
+
+def calculate_rank(functions_from_sbox:list):
+    result = []
+
+    for function in functions_from_sbox:
+        x7, x6, x5, x4, x3, x2, x1, x0 = symbols('x7 x6 x5 x4 x3 x2 x1 x0')
+        sbox_anf_form = ANFform([x7, x6, x5, x4, x3, x2, x1, x0], function)
+        result.append([sbox_anf_form])
+    
+    return result
+
+
 
 print("--------------------------------------------------------")
 print("Given sbox:")
