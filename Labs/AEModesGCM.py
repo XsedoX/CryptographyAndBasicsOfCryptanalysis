@@ -2,7 +2,6 @@
 import random
 import math
 from Crypto.Cipher import AES
-import json
 
 
 def text_to_binary(text: str) -> str:
@@ -41,7 +40,7 @@ def binary_to_text(bits: str) -> str:
     return byte_data.decode("utf-8")
 
 
-def integer_to_string(x: int, s: int) -> str:
+def integer_to_binary(x: int, s: int) -> str:
     binary_string = bin(x)[2:]
     padded_string = binary_string.zfill(s)
     return padded_string
@@ -62,7 +61,7 @@ def to_blocks(message: str) -> list[str]:
     return result
 
 
-def string_to_integer(X: str) -> int:
+def binary_to_integer(X: str) -> int:
     return int(X, 2)
 
 
@@ -70,7 +69,7 @@ def inc(X: str, s: int) -> str:
     if len(X) < s:
         raise ValueError("s is higher than len(X) in increment")
     lsb = LSB(X, s)
-    return MSB(X, len(X) - s) + integer_to_string((string_to_integer(lsb) + 1) % (2 ** s), s)
+    return MSB(X, len(X) - s) + integer_to_binary((binary_to_integer(lsb) + 1) % (2 ** s), s)
 
 
 def generate_s_bits(s: int, bit: int) -> str:
@@ -152,7 +151,7 @@ def blocks_multiplication(X: str, Y: str) -> str:
     return Z[128]
 
 
-def CIPH(K: str, data_to_encode: str, iv: str) -> json:
+def CIPH(K: str, data_to_encode: str, iv: str) -> str:
     cipher = AES.new(binary_to_bytes(K), AES.MODE_GCM, nonce=binary_to_bytes(iv))
     ct_bytes = cipher.encrypt(binary_to_bytes(data_to_encode))
     return bytes_to_binary(ct_bytes)
@@ -194,13 +193,13 @@ def GCM_AE(K: str, IV: str, P: str, A: str) -> tuple[str, str]:
         J = [IV + generate_s_bits(31, 0) + "1"]
     else:
         s = (128 * math.ceil(len(IV) / 128)) - len(IV)
-        J = [GHASH(H, IV + generate_s_bits(s + 64, 0) + integer_to_string(len(IV), 64))]
+        J = [GHASH(H, IV + generate_s_bits(s + 64, 0) + integer_to_binary(len(IV), 64))]
 
     C = GCTR(K, inc(J[0], 32), P, IV)
     u = (128 * math.ceil(len(C) / 128)) - len(C)
     v = (128 * math.ceil(len(A) / 128)) - len(A)
-    S = GHASH(H, A + generate_s_bits(v, 0) + C + generate_s_bits(u, 0) + integer_to_string(len(A), 64)
-              + integer_to_string(len(C), 64))
+    S = GHASH(H, A + generate_s_bits(v, 0) + C + generate_s_bits(u, 0) + integer_to_binary(len(A), 64)
+              + integer_to_binary(len(C), 64))
     T = MSB(GCTR(K, J[0], S, IV), 128)
     return C, T
 
@@ -211,12 +210,12 @@ def GCM_AD(K: str, IV: str, C: str, A: str, T: str) -> str:
         J = [IV + generate_s_bits(31, 0) + "1"]
     else:
         s = (128 * math.ceil(len(IV) / 128)) - len(IV)
-        J = [GHASH(H, IV + generate_s_bits(s + 64, 0) + integer_to_string(len(IV), 64))]
+        J = [GHASH(H, IV + generate_s_bits(s + 64, 0) + integer_to_binary(len(IV), 64))]
     P = GCTR(K, inc(J[0], 32), C, IV)
     u = (128 * math.ceil(len(C) / 128)) - len(C)
     v = (128 * math.ceil(len(A) / 128)) - len(A)
-    S = GHASH(H, A + generate_s_bits(v, 0) + C + generate_s_bits(u, 0) + integer_to_string(len(A), 64)
-              + integer_to_string(len(C), 64))
+    S = GHASH(H, A + generate_s_bits(v, 0) + C + generate_s_bits(u, 0) + integer_to_binary(len(A), 64)
+              + integer_to_binary(len(C), 64))
     T_prim = MSB(GCTR(K, J[0], S, IV), 128)
     if T == T_prim:
         return binary_to_text(P)
@@ -232,8 +231,8 @@ def main() -> None:
 
     IV = random.getrandbits(128)
     K = random.getrandbits(128)
-    IV_binary = integer_to_string(IV, 128)
-    K_binary = integer_to_string(K, 128)
+    IV_binary = integer_to_binary(IV, 128)
+    K_binary = integer_to_binary(K, 128)
 
     checkVariablesRequirements(P_binary, A_binary, IV_binary)
 
