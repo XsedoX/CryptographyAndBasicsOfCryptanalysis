@@ -1,6 +1,7 @@
 import random
 import time
-
+import base64
+from Crypto.Cipher import AES
 
 def main():
     P = int(input("Provide first public number P = "))
@@ -47,7 +48,7 @@ def main():
     fancy_print(f"Alice should get Bob's public key B = {bobs_public_key} but instead she got key that Mallet calculated:\n"
                 f"MB = G ^ c mod P = {G}^{c} mod {P} = {bobs_public_key_from_mallet}")
     input()
-    fancy_print(f"He does the same thing to Bob:\nMA = G ^ d mod P = {G}^{c} mod {P} = {alices_public_key_from_mallet}")
+    fancy_print(f"He does the same thing to Bob:\nMA = G ^ d mod P = {G}^{d} mod {P} = {alices_public_key_from_mallet}")
     input()
     fancy_print(f"Alice got Mallet's MB while being convinced that she has got Bob's public key B.\n")
     fancy_print("Bob got Mallet's MA while also being convinced that he has got Alice's public key A.")
@@ -67,13 +68,64 @@ def main():
     fancy_print("Bob's secret that Mallet also has using Bob's public key (that Alice has never got):\n"
                 f"s = B ^ d mod P = {bobs_public_key} ^ {d} mod {P} = {bob_secret_mallet_has}\n")
     fancy_print("Malice can decrypt, edit and then encrypt the communication between Alice and Bob without them noticing it.")
+    input()
+    
+    time.sleep(3)
+    print("Alice, provide a message that you want to send to Bob, please: ")
+    msg_to_bob = input()
+    msg_sent_to_bob = aes_encryption(msg_to_bob, alices_secret)
+    print("\nYour message is encrypted now and it's ready to be sent:\n", msg_sent_to_bob)
+    decrypted_msg_for_bob = aes_decryption(msg_sent_to_bob, bobs_secret)
+    print("\nBob, you received a message. Try to decrypt it with your private key:\n", decrypted_msg_for_bob)
+    print("\n\nBob, try to respond to Alice now:", )
+    msg_to_alice = input()
+    msg_sent_to_alice = aes_encryption(msg_to_alice, bobs_secret)
+    print("\nYour message is encrypted now and it's ready to be sent:\n", msg_sent_to_alice)
+    decrypted_msg_for_alice = aes_decryption(msg_sent_to_alice, alices_secret)
+    print("\nAlice, you received a message. Try to decrypt it with your private key:\n", decrypted_msg_for_alice)
 
+    print("\nWhat if mallet intercepted any encrypted message?")
+    print("\nProvide a message for Alice that she wants to send to Bob")
+    alices_msg = input()
+    msg_to_bob_swapped_key = aes_encryption(alices_msg, alice_secret_from_mallet)
+    print("Message to Bob, encrypted with swapped key:\n", msg_to_bob_swapped_key)
+    intercepted_alices_msg = aes_decryption(msg_to_bob_swapped_key, alice_secret_mallet_has)
+    print("\nMallet intercepted a message from Alice and suddenly decrypted it:\n", intercepted_alices_msg)
+    
+    print("\nWe can do the same with Bob")
+    print("\nProvide a message for Bob that she wants to send to Alice")
+    bobs_msg = input()
+    msg_to_alice_swapped_key = aes_encryption(bobs_msg, bob_secret_from_mallet)
+    print("Message to Alice, encrypted with swapped key:\n", msg_to_alice_swapped_key)
+    intercepted_bobs_msg = aes_decryption(msg_to_alice_swapped_key, bob_secret_mallet_has)
+    print("\nMallet intercepted a message from Bob and suddenly decrypted it:\n", intercepted_bobs_msg)
+
+def aes_encryption(plaintext, key):
+    key = str(key)
+    key_up_to_32_bytes = str.encode(key.zfill(32))
+    text_up_to_256_bytes = str.encode(plaintext.zfill(256))
+    cipher = AES.new(key_up_to_32_bytes, AES.MODE_ECB)
+    ciphertext = cipher.encrypt(text_up_to_256_bytes)
+    ciphertext_base64 = base64.b64encode(ciphertext).decode('utf-8')
+    return ciphertext_base64
+
+def aes_decryption(ciphertext, key):
+    key = str(key)
+    key_up_to_32_bytes = str.encode(key.zfill(32))
+    ciphertext_base64_decoded = base64.b64decode(ciphertext)
+    cipher = AES.new(key_up_to_32_bytes, AES.MODE_ECB)
+    plaintext_byte_string = (cipher.decrypt(ciphertext_base64_decoded)).decode()
+    plaintext = remove_zeros_from_zfill(plaintext_byte_string)
+    return plaintext
+
+def remove_zeros_from_zfill(text):
+    list = [i.lstrip('0') for i in text]
+    return "".join(list)
 
 def fancy_print(text: str):
     for letter in text:
         print(letter, end="", sep="")
         time.sleep(0.03)
-
 
 if __name__ == "__main__":
     main()
